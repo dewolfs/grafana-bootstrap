@@ -1,0 +1,33 @@
+"appRoles":
+  [
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Grafana admin Users",
+      "displayName": "Grafana Admin",
+      "id": "59ad67d8-9e88-42a3-b06d-05d29dba2670",
+      "isEnabled": true,
+      "lang": null,
+      "origin": "Application",
+      "value": "Admin"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Grafana read only Users",
+      "displayName": "Grafana Viewer",
+      "id": "a5261afa-6d11-4317-9a27-003284150c58",
+      "isEnabled": true,
+      "lang": null,
+      "origin": "Application",
+      "value": "Viewer"
+    },
+    {
+      "allowedMemberTypes": ["User"],
+      "description": "Grafana Editor Users",
+      "displayName": "Grafana Editor",
+      "id": "fe9438ae-8a33-4732-94f4-e4ca16cdedff",
+      "isEnabled": true,
+      "lang": null,
+      "origin": "Application",
+      "value": "Editor"
+    }
+  ]

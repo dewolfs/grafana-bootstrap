@@ -1,0 +1,11 @@
+server:
+  global:
+    scrape_interval: 5s
+    scrape_timeout: 3s
+serverFiles:
+  prometheus.yml:
+    scrape_configs:
+      - job_name: 'App-TheBank'
+        static_configs:
+          - targets: 
+            - thebank.thebank.svc.cluster.local

@@ -1,0 +1,58 @@
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-server.monitoring.svc.cluster.local:80
+      access: proxy
+      isDefault: true
+
+grafana.ini:
+  paths:
+    logs: /var/log/grafana
+  log:
+    mode: file
+    level: debug
+  auth.azuread:
+    enabled: true
+    name: AzureAD
+    client_id: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxx
+    client_secret: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxx
+    allow_sign_up: true
+    scopes: "openid email profile"
+    auth_url: https://login.microsoftonline.com/xxxxxxx-xxxx-xxxx-xxxx-xxxxxxx/oauth2/v2.0/authorize
+    token_url: https://login.microsoftonline.com/xxxxxxx-xxxx-xxxx-xxxx-xxxxxxx/oauth2/v2.0/token
+    allowed_groups: xxxxxxx-xxxx-xxxx-xxxx-xxxxxxx
+  server:
+    root_url: https://grafana-ingress.westeurope.cloudapp.azure.com/ 
+
+plugins:
+  - grafana-kubernetes-app
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/default
+
+dashboards:
+  default:
+    kubernetes-cluster:
+      gnetId: 8588
+      datasource: Prometheus
+    ASPNET-Core:
+      gnetId: 10915
+      datasource: Prometheus
+    CoreDNS:
+      gnetId: 7279
+      datasource: Prometheus
+
+      

@@ -1,0 +1,95 @@
+# create a unique name based on your project requirements
+name: $(TeamProject)_$(Build.DefinitionName)_$(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:  none
+
+resources:
+- repo: self
+
+# global variables
+variables:
+  vmImageName: 'ubuntu-latest'
+  azureSubscription: 'azure-conn'
+  aksAzureResourceGroup: '_rg-aks-d-we-001'
+  aksKubernetesClusterName: 'aks-d-we-001'
+  kubernetesServiceEndpoint: 'cluster-conn'
+
+stages:
+- stage: Release
+  jobs:
+    - deployment: DeployToAKS
+      pool:
+        vmImage: $(vmImageName)
+      environment: prod
+      strategy:
+       runOnce:
+         deploy:
+           steps:
+              - checkout: self
+              - task: Kubernetes@1
+                displayName: 'Create Kubernetes NS NGINX ingress'
+                inputs:
+                  connectionType: 'Kubernetes Service Connection'
+                  kubernetesServiceEndpoint: $(kubernetesServiceEndpoint)
+                  command: 'apply'
+                  arguments: '-f manifests/nginx-ingress-ns.yml'
+              - task: Kubernetes@1
+                displayName: 'Create Kubernetes NS cert-manager'
+                inputs:
+                  connectionType: 'Kubernetes Service Connection'
+                  kubernetesServiceEndpoint: $(kubernetesServiceEndpoint)
+                  command: 'apply'
+                  arguments: '-f manifests/cert-manager-ns.yml'
+              - script: |
+                  helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+                  helm repo add jetstack https://charts.jetstack.io
+                  helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+                  helm repo update
+                displayName: 'Update Helm repo charts'
+              - task: HelmDeploy@0
+                displayName: 'Helm install NGINX Ingress'
+                inputs:
+                  connectionType: 'Azure Resource Manager'
+                  azureSubscription: $(azureSubscription)
+                  azureResourceGroup: $(aksAzureResourceGroup)
+                  kubernetesCluster: $(aksKubernetesClusterName)
+                  namespace: 'ingress'
+                  command: 'upgrade'
+                  chartType: 'Name'
+                  chartName: 'ingress-nginx/ingress-nginx'
+                  releaseName: 'nginx-ingress'
+              - task: HelmDeploy@0
+                displayName: 'Helm install Cert-manager'
+                inputs:
+                  connectionType: 'Azure Resource Manager'
+                  azureSubscription: $(azureSubscription)
+                  azureResourceGroup: $(aksAzureResourceGroup)
+                  kubernetesCluster: $(aksKubernetesClusterName)
+                  namespace: 'cert-manager'
+                  command: 'upgrade'
+                  chartType: 'Name'
+                  chartName: 'jetstack/cert-manager'
+                  releaseName: 'cert-manager'
+                  overrideValues: 'installCRDs=true'
+              - task: Kubernetes@1
+                displayName: 'Deploy Kubernetes Cert-Manager Certificate Issuer'
+                inputs:
+                  connectionType: 'Kubernetes Service Connection'
+                  kubernetesServiceEndpoint: $(kubernetesServiceEndpoint)
+                  command: 'apply'
+                  namespace: 'cert-manager'
+                  arguments: '-f manifests/cluster-issuer-letsencrypt-production.yml'
+              - task: AzureCLI@2
+                displayName: 'Set DNS label on public IP AKS loadbalancer'
+                inputs:
+                  azureSubscription: $(azureSubscription)
+                  scriptType: 'bash'
+                  scriptLocation: 'inlineScript'
+                  inlineScript: |
+                    INGRESS_DNS_LABEL="grafana-ingress"
+                    echo "DNS label is $INGRESS_DNS_LABEL"
+                    PUBLIC_IP_NAME=$(az network public-ip list --query "[?starts_with(name,'kubernetes-')].[name]" --output tsv)
+                    echo "Public IP resource name is $PUBLIC_IP_NAME"
+                    PUBLIC_IP_RESOURCE_GROUP=$(az network public-ip list --query "[?starts_with(name,'kubernetes-')].[resourceGroup]" --output tsv)
+                    echo "Public IP resource is stored in RG $PUBLIC_IP_RESOURCE_GROUP"
+                    az network public-ip update --resource-group "$PUBLIC_IP_RESOURCE_GROUP" --name "$PUBLIC_IP_NAME" --dns-name $INGRESS_DNS_LABEL --allocation-method Static
